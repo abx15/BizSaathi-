@@ -1,0 +1,39 @@
+import { IsString, IsOptional, IsNotEmpty, Matches } from 'class-validator';
+
+export class CreateCustomerDto {
+  @IsNotEmpty()
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @Matches(/^\+91[6-9]\d{9}$/, {
+    message: 'Phone number must be a valid Indian mobile number starting with +91',
+  })
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @Matches(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, {
+    message: 'Invalid GSTIN format',
+  })
+  gstin?: string;
+
+  @IsOptional()
+  @IsString()
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  city?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @Matches(/^[1-9][0-9]{5}$/, { message: 'Invalid Indian Pincode' })
+  pincode?: string;
+}

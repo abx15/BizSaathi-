@@ -1,0 +1,533 @@
+// All models needed for Phase 1 & 2
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  gstNumber String?
+  address   String?
+  phone     String
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+}
+
+model User {
+  id            String         @id @default(uuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  phone         String         @unique
+  name          String?
+  email         String?
+  avatarUrl     String?
+  role          UserRole       @default(OWNER)
+  isActive      Boolean        @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+}
+
+model OtpVerification {
+  id        String   @id @default(uuid())
+  phone     String
+  otp       String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  STAFF
+  ACCOUNTANT
+}
+
+model Customer {
+  id        String    @id @default(uuid())
+  tenantId  String
+  name      String
+  phone     String?
+  email     String?
+  gstin     String?
+  address   String?
+  city      String?
+  state     String?
+  pincode   String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  invoices  Invoice[]
+
+  @@index([tenantId])
+}
+
+model Product {
+  id           String        @id @default(uuid())
+  tenantId     String
+  name         String
+  description  String?
+  hsnCode      String?
+  unit         String        @default("pcs")
+  price        Decimal       @db.Decimal(10, 2)
+  gstRate      Decimal       @default(18) @db.Decimal(5, 2)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  invoiceItems InvoiceItem[]
+
+  @@index([tenantId])
+}
+
+model Invoice {
+  id              String        @id @default(uuid())
+  tenantId        String
+  invoiceNumber   String
+  customerId      String
+  customer        Customer      @relation(fields: [customerId], references: [id])
+  invoiceDate     DateTime      @default(now())
+  dueDate         DateTime?
+  status          InvoiceStatus @default(DRAFT)
+  subtotal        Decimal       @db.Decimal(10, 2)
+  totalCgst       Decimal       @default(0) @db.Decimal(10, 2)
+  totalSgst       Decimal       @default(0) @db.Decimal(10, 2)
+  totalIgst       Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(10, 2)
+  notes           String?
+  termsConditions String?
+  isGstInvoice    Boolean       @default(true)
+  placeOfSupply   String? // state code for IGST vs CGST+SGST
+  pdfUrl          String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  items           InvoiceItem[]
+  payments        Payment[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, customerId])
+}
+
+model InvoiceItem {
+  id        String   @id @default(uuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+  name      String
+  hsnCode   String?
+  quantity  Decimal  @db.Decimal(10, 3)
+  unit      String   @default("pcs")
+  rate      Decimal  @db.Decimal(10, 2)
+  discount  Decimal  @default(0) @db.Decimal(5, 2)
+  gstRate   Decimal  @default(18) @db.Decimal(5, 2)
+  cgst      Decimal  @default(0) @db.Decimal(10, 2)
+  sgst      Decimal  @default(0) @db.Decimal(10, 2)
+  igst      Decimal  @default(0) @db.Decimal(10, 2)
+  amount    Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  tenantId  String
+  invoiceId String
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id])
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod @default(CASH)
+  reference String?
+  note      String?
+  paidAt    DateTime      @default(now())
+  createdAt DateTime      @default(now())
+
+  @@index([tenantId])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  BANK_TRANSFER
+  CHEQUE
+  CARD
+  OTHER
+}
+
+model ExpenseCategory {
+  id        String    @id @default(uuid())
+  tenantId  String? // null = system default categories
+  name      String
+  icon      String? // emoji or icon name
+  color     String? // hex color
+  isDefault Boolean   @default(false)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  expenses  Expense[]
+
+  @@index([tenantId])
+}
+
+model Expense {
+  id            String          @id @default(uuid())
+  tenantId      String
+  categoryId    String
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+  title         String
+  description   String?
+  amount        Decimal         @db.Decimal(10, 2)
+  gstAmount     Decimal         @default(0) @db.Decimal(10, 2)
+  totalAmount   Decimal         @db.Decimal(10, 2)
+  paymentMethod PaymentMethod   @default(CASH)
+  vendor        String?
+  reference     String?
+  expenseDate   DateTime        @default(now())
+  receiptUrl    String? // R2 file URL
+  receiptKey    String? // R2 object key for deletion
+  tags          String[]        @default([])
+  isRecurring   Boolean         @default(false)
+  recurringRule String? // cron expression if recurring
+  createdBy     String // userId
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([tenantId, expenseDate])
+  @@index([tenantId, categoryId])
+}
+
+model FileUpload {
+  id           String      @id @default(uuid())
+  tenantId     String
+  uploadedBy   String // userId
+  key          String      @unique // R2 object key
+  url          String // public/signed URL
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int // bytes
+  purpose      FilePurpose
+  entityId     String? // linked invoice/expense id
+  entityType   String? // "invoice" | "expense" | "staff"
+  isTemporary  Boolean     @default(true) // true until linked to entity
+  expiresAt    DateTime? // for temporary files
+  createdAt    DateTime    @default(now())
+
+  @@index([tenantId])
+  @@index([entityId, entityType])
+}
+
+enum FilePurpose {
+  RECEIPT
+  INVOICE_PDF
+  STAFF_DOCUMENT
+  BUSINESS_LOGO
+  OTHER
+}
+
+model Staff {
+  id             String         @id @default(uuid())
+  tenantId       String
+  employeeCode   String // EMP-001 format, tenant-scoped
+  name           String
+  phone          String
+  email          String?
+  avatarUrl      String?
+  role           String // job title — "Sales Manager", "Driver" etc
+  department     String?
+  joiningDate    DateTime
+  leavingDate    DateTime?
+  employmentType EmploymentType @default(FULL_TIME)
+  status         StaffStatus    @default(ACTIVE)
+
+  // Salary details
+  salaryType  SalaryType @default(MONTHLY)
+  basicSalary Decimal    @db.Decimal(10, 2)
+  hra         Decimal    @default(0) @db.Decimal(10, 2)
+  allowances  Decimal    @default(0) @db.Decimal(10, 2)
+  pfEnabled   Boolean    @default(false)
+  esicEnabled Boolean    @default(false)
+  tdsEnabled  Boolean    @default(false)
+
+  // Bank details
+  bankName      String?
+  accountNumber String?
+  ifscCode      String?
+  upiId         String?
+
+  // Emergency
+  emergencyContact String?
+  emergencyPhone   String?
+
+  // Address
+  address String?
+  city    String?
+  state   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attendances Attendance[]
+  payrolls    Payroll[]
+  leaves      Leave[]
+  documents   StaffDocument[]
+
+  @@unique([tenantId, employeeCode])
+  @@index([tenantId, status])
+}
+
+model Attendance {
+  id          String           @id @default(uuid())
+  tenantId    String
+  staffId     String
+  staff       Staff            @relation(fields: [staffId], references: [id])
+  date        DateTime         @db.Date
+  status      AttendanceStatus @default(PRESENT)
+  checkIn     DateTime?
+  checkOut    DateTime?
+  hoursWorked Decimal?         @db.Decimal(4, 2)
+  overtime    Decimal?         @db.Decimal(4, 2) // extra hours
+  note        String?
+  markedBy    String // userId who marked
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([staffId, date])
+  @@index([tenantId, date])
+  @@index([staffId, date])
+}
+
+model Leave {
+  id            String      @id @default(uuid())
+  tenantId      String
+  staffId       String
+  staff         Staff       @relation(fields: [staffId], references: [id])
+  leaveType     LeaveType   @default(CASUAL)
+  fromDate      DateTime    @db.Date
+  toDate        DateTime    @db.Date
+  days          Int
+  reason        String?
+  status        LeaveStatus @default(PENDING)
+  approvedBy    String? // userId
+  rejectedBy    String?
+  rejectionNote String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([tenantId, staffId])
+  @@index([tenantId, status])
+}
+
+model Payroll {
+  id       String @id @default(uuid())
+  tenantId String
+  staffId  String
+  staff    Staff  @relation(fields: [staffId], references: [id])
+  month    String // "2025-01" format
+
+  // Attendance summary
+  workingDays   Int
+  presentDays   Int
+  absentDays    Int
+  leaveDays     Int
+  overtimeHours Decimal @default(0) @db.Decimal(6, 2)
+
+  // Earnings
+  basicSalary Decimal @db.Decimal(10, 2)
+  hra         Decimal @default(0) @db.Decimal(10, 2)
+  allowances  Decimal @default(0) @db.Decimal(10, 2)
+  overtimePay Decimal @default(0) @db.Decimal(10, 2)
+  bonus       Decimal @default(0) @db.Decimal(10, 2)
+  grossSalary Decimal @db.Decimal(10, 2)
+
+  // Deductions
+  pfEmployee      Decimal @default(0) @db.Decimal(10, 2)
+  pfEmployer      Decimal @default(0) @db.Decimal(10, 2)
+  esicEmployee    Decimal @default(0) @db.Decimal(10, 2)
+  esicEmployer    Decimal @default(0) @db.Decimal(10, 2)
+  tds             Decimal @default(0) @db.Decimal(10, 2)
+  otherDeductions Decimal @default(0) @db.Decimal(10, 2)
+  totalDeductions Decimal @db.Decimal(10, 2)
+
+  // Net
+  netSalary Decimal @db.Decimal(10, 2)
+
+  status        PayrollStatus @default(DRAFT)
+  paymentMethod PaymentMethod @default(BANK_TRANSFER)
+  paidAt        DateTime?
+  slipUrl       String? // R2 PDF URL
+  note          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, staffId, month])
+  @@index([tenantId, month])
+  @@index([tenantId, status])
+}
+
+model StaffDocument {
+  id        String       @id @default(uuid())
+  tenantId  String
+  staffId   String
+  staff     Staff        @relation(fields: [staffId], references: [id])
+  docType   StaffDocType
+  title     String
+  fileUrl   String
+  fileKey   String
+  expiresAt DateTime?
+  createdAt DateTime     @default(now())
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  DAILY_WAGE
+}
+
+enum StaffStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+  RESIGNED
+}
+
+enum SalaryType {
+  MONTHLY
+  DAILY
+  HOURLY
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  HOLIDAY
+  WEEKLY_OFF
+  ON_LEAVE
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  EARNED
+  MATERNITY
+  PATERNITY
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayrollStatus {
+  DRAFT
+  PROCESSED
+  PAID
+  CANCELLED
+}
+
+enum StaffDocType {
+  AADHAR
+  PAN
+  OFFER_LETTER
+  CONTRACT
+  OTHER
+}
+
+model WhatsAppTemplate {
+  id           String   @id @default(uuid())
+  tenantId     String?  // null = system templates
+  name         String   // must match Meta approved template name
+  language     String   @default("en")
+  category     String   // MARKETING | UTILITY | AUTHENTICATION
+  components   Json     // template component structure
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  @@unique([name, language])
+}
+
+model WhatsAppMessage {
+  id            String          @id @default(uuid())
+  tenantId      String
+  direction     MsgDirection
+  phone         String          // recipient/sender phone
+  messageId     String?         @unique  // Meta message ID
+  type          String          // text | template | image | document
+  content       Json            // full message payload
+  templateName  String?
+  entityType    String?         // "invoice" | "reminder" | "otp" | "report"
+  entityId      String?
+  status        MsgStatus       @default(PENDING)
+  errorCode     String?
+  errorMessage  String?
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  createdAt     DateTime        @default(now())
+
+  @@index([tenantId, phone])
+  @@index([entityId, entityType])
+}
+
+model WhatsAppSession {
+  id          String   @id @default(uuid())
+  tenantId    String?
+  phone       String   @unique
+  state       String   @default("idle")  // bot conversation state
+  context     Json     @default("{}")
+  lastMessage String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum MsgDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum MsgStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+

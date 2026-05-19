@@ -1,0 +1,282 @@
+_format_version: "3.0"
+
+services:
+  - name: backend-service
+    url: http://backend:3001
+    routes:
+      - name: auth-route
+        paths:
+          - /v1/auth
+        strip_path: false
+        plugins:
+          - name: rate-limiting
+            config:
+              minute: 60
+              policy: local
+          - name: cors
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - POST
+                - PUT
+                - PATCH
+                - DELETE
+                - OPTIONS
+              headers:
+                - Accept
+                - Accept-Version
+                - Content-Length
+                - Content-MD5
+                - Content-Type
+                - Date
+                - Authorization
+                - X-Tenant-ID
+              exposed_headers:
+                - X-Auth-Token
+              credentials: true
+              max_age: 3600
+          - name: request-id
+            config:
+              header_name: X-Request-ID
+      - name: customer-route
+        paths:
+          - /v1/customers
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: product-route
+        paths:
+          - /v1/products
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: invoice-route
+        paths:
+          - /v1/invoices
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: gst-route
+        paths:
+          - /v1/gst
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: category-route
+        paths:
+          - /v1/categories
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: expense-route
+        paths:
+          - /v1/expenses
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: upload-route
+        paths:
+          - /v1/upload
+        strip_path: false
+        plugins:
+          - name: request-size-limiting
+            config:
+              allowed_payload_size: 15
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: staff-route
+        paths:
+          - /v1/staff
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: attendance-route
+        paths:
+          - /v1/attendance
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: leave-route
+        paths:
+          - /v1/leave
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: payroll-route
+        paths:
+          - /v1/payroll
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: whatsapp-route
+        paths:
+          - /v1/whatsapp
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+
+  - name: crm-service
+    url: http://crm-service:3005
+    routes:
+      - name: crm-contacts-route
+        paths:
+          - /v1/contacts
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: crm-leads-route
+        paths:
+          - /v1/leads
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: crm-pipelines-route
+        paths:
+          - /v1/pipelines
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: crm-activities-route
+        paths:
+          - /v1/activities
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: crm-followups-route
+        paths:
+          - /v1/followups
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: crm-analytics-route
+        paths:
+          - /v1/crm
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+
+  - name: ai-service
+    url: http://ai-service:8000
+    routes:
+      - name: ai-route
+        paths:
+          - /v1/ai
+        strip_path: false
+        plugins:
+          - name: request-size-limiting
+            config:
+              allowed_payload_size: 10
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID", "X-Internal-Key"]
+              credentials: true
+
+  - name: whatsapp-bot-service
+    url: http://whatsapp-bot-service:3007
+    routes:
+      - name: whatsapp-webhook-route
+        paths:
+          - /v1/webhook/whatsapp
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "OPTIONS"]
+              headers: ["Accept", "Content-Type", "X-Hub-Signature-256"]
+              credentials: true
+
+
