@@ -16,4 +16,4 @@ RUN npx prisma generate
 COPY . .
 
 # Run migrations then start in dev watch mode
-CMD sh -c "npx prisma migrate deploy && npm run start:dev"
+CMD sh -c "npx prisma db push --accept-data-loss && npm run start:dev"
