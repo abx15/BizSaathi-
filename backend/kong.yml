@@ -2,7 +2,7 @@ _format_version: "3.0"
 
 services:
   - name: backend-service
-    url: http://backend:3001
+    url: http://backend:3001/api
     routes:
       - name: auth-route
         paths:
@@ -37,6 +37,39 @@ services:
                 - X-Auth-Token
               credentials: true
               max_age: 3600
+      - name: health-route
+        paths:
+          - /v1/health
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "OPTIONS"]
+              headers: ["Accept", "Content-Type"]
+              credentials: false
+      - name: onboarding-route
+        paths:
+          - /v1/onboarding
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
+      - name: dashboard-route
+        paths:
+          - /v1/dashboard
+        strip_path: false
+        plugins:
+          - name: cors
+            config:
+              origins: ["*"]
+              methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+              headers: ["Accept", "Accept-Version", "Content-Length", "Content-MD5", "Content-Type", "Date", "Authorization", "X-Tenant-ID"]
+              credentials: true
       - name: customer-route
         paths:
           - /v1/customers
