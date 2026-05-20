@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+logs
+*.log
+npm-debug.log*
+.env
+.env.*
+!.env.example
+coverage
+.nyc_output
+uploads
