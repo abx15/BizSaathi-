@@ -1,56 +1,68 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import React, { useEffect, useState } from 'react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { formatINR, formatINRCompact } from '@/lib/format';
-import { ExpenseAnalytics, CategoryExpense } from '@/lib/api/dashboard';
-import { Skeleton } from './dashboard-skeleton';
+import { ExpenseAnalytics } from '@/lib/api/dashboard';
 
 interface ExpenseChartProps {
   data?: ExpenseAnalytics;
   isLoading: boolean;
 }
 
-function ExpenseChartContent({ data }: { data?: ExpenseAnalytics }) {
+export function ExpenseChart({ data, isLoading }: ExpenseChartProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    return <div className="h-[200px] w-full bg-muted/20 animate-pulse rounded-full" />;
+  if (isLoading || !mounted) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="text-base font-bold text-foreground">
+            Kharche Ka Breakdown
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4 animate-pulse">
+            <div className="h-40 w-40 rounded-full bg-muted/40" />
+            <div className="space-y-2 w-full max-w-[150px]">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-4 w-full bg-muted/40 rounded" />
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
-  // Fallback demo expense categories if empty
-  const defaultCategories: CategoryExpense[] = [
-    { categoryId: '1', categoryName: 'Rent', icon: '🏢', color: '#10B981', amount: 50000, percentage: 42.8, count: 1 },
-    { categoryId: '2', categoryName: 'Salary', icon: '👥', color: '#3B82F6', amount: 45000, percentage: 38.5, count: 2 },
-    { categoryId: '3', categoryName: 'Materials', icon: '📦', color: '#F59E0B', amount: 15000, percentage: 12.8, count: 5 },
-    { categoryId: '4', categoryName: 'Others', icon: '📎', color: '#64748B', amount: 6999, percentage: 5.9, count: 3 },
+  // Fallback data if API returns empty
+  const categories = data?.byCategory || [
+    { categoryId: '1', categoryName: 'Rent', icon: '🏠', color: '#f43f5e', amount: 50000, percentage: 42.8, count: 1 },
+    { categoryId: '2', categoryName: 'Salary', icon: '👥', color: '#3b82f6', amount: 45000, percentage: 38.5, count: 3 },
+    { categoryId: '3', categoryName: 'Materials', icon: '📦', color: '#10b981', amount: 15000, percentage: 12.8, count: 5 },
+    { categoryId: '4', categoryName: 'Others', icon: '⚙️', color: '#64748b', amount: 6800, percentage: 5.9, count: 2 },
   ];
 
-  const chartData = data?.byCategory?.length ? data.byCategory : defaultCategories;
-  const totalExpenses = data?.summary?.totalExpenses || chartData.reduce((acc, curr) => acc + curr.amount, 0);
+  const totalExpense = data?.summary?.totalExpenses ?? categories.reduce((sum, c) => sum + c.amount, 0);
 
-  // Custom tooltips matching dark-themed aesthetics
+  // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
-      const item = payload[0].payload as CategoryExpense;
+      const category = payload[0].payload;
       return (
-        <div className="bg-slate-900 border border-slate-800 text-white rounded-xl p-2.5 shadow-xl text-xs space-y-1">
-          <div className="flex items-center gap-1.5 font-bold text-slate-300">
-            <span>{item.icon}</span>
-            <span>{item.categoryName}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-400">Total Kharcha:</span>
-            <span className="font-semibold">{formatINR(item.amount)}</span>
-          </div>
-          <div className="flex justify-between gap-4">
-            <span className="text-slate-400">Part:</span>
-            <span className="font-semibold">{item.percentage.toFixed(1)}%</span>
-          </div>
+        <div className="bg-slate-900 border border-slate-800 text-slate-100 p-2.5 rounded-lg shadow-xl text-xs space-y-0.5">
+          <p className="font-bold text-slate-400">
+            {category.icon} {category.categoryName}
+          </p>
+          <p className="font-extrabold text-sm">{formatINR(category.amount)}</p>
+          <p className="text-[10px] text-indigo-300 font-bold uppercase tracking-wider">
+            {category.percentage.toFixed(1)}% of total
+          </p>
         </div>
       );
     }
@@ -58,83 +70,80 @@ function ExpenseChartContent({ data }: { data?: ExpenseAnalytics }) {
   };
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 md:gap-8 w-full">
-      {/* Donut Pie Section */}
-      <div className="h-[200px] w-[200px] relative flex-shrink-0">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Tooltip content={<CustomTooltip />} />
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              innerRadius={68}
-              outerRadius={92}
-              paddingAngle={4}
-              dataKey="amount"
-              nameKey="categoryName"
-              animationDuration={800}
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color || '#64748b'} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-        {/* Grand Total inside Ring */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-            Total Kharcha
-          </span>
-          <span className="text-lg font-extrabold text-foreground tracking-tight block">
-            {formatINRCompact(totalExpenses)}
-          </span>
-        </div>
-      </div>
-
-      {/* Legend List */}
-      <div className="flex-1 space-y-2.5 w-full">
-        {chartData.map((cat, idx) => (
-          <div
-            key={cat.categoryId || idx}
-            className="flex items-center justify-between text-xs py-1 border-b border-muted-foreground/5 last:border-b-0 hover:bg-foreground/2 px-2.5 rounded-lg transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <div
-                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: cat.color || '#64748b' }}
-              />
-              <span className="mr-1">{cat.icon || '📎'}</span>
-              <span className="font-semibold text-foreground">{cat.categoryName}</span>
-            </div>
-            <div className="text-right space-x-2">
-              <span className="font-bold text-foreground">{formatINRCompact(cat.amount)}</span>
-              <span className="text-muted-foreground text-[10px] font-medium">
-                {cat.percentage.toFixed(1)}%
+    <Card className="w-full h-full border hover:shadow-md transition-shadow">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base font-bold text-foreground">
+          Kharche Ka Breakdown
+        </CardTitle>
+        <p className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider mt-0.5">
+          Is mahine ke kharche by category
+        </p>
+      </CardHeader>
+      
+      <CardContent>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-4 md:gap-8">
+          {/* Donut Container */}
+          <div className="relative w-44 h-44 flex-shrink-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={categories}
+                  dataKey="amount"
+                  nameKey="categoryName"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={75}
+                  paddingAngle={3}
+                  animationDuration={1200}
+                >
+                  {categories.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || '#64748b'} />
+                  ))}
+                </Pie>
+                <Tooltip content={<CustomTooltip />} />
+              </PieChart>
+            </ResponsiveContainer>
+            
+            {/* Center Label inside Donut */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                Total Kharcha
+              </span>
+              <span className="text-lg font-black text-foreground mt-0.5">
+                {formatINRCompact(totalExpense)}
               </span>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
-export default function ExpenseChart({ data, isLoading }: ExpenseChartProps) {
-  return (
-    <div className="border border-muted/50 rounded-2xl p-6 bg-card space-y-4 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col justify-between">
-      <div>
-        <h3 className="font-bold text-foreground text-base">Kharche Ka Breakdown</h3>
-        <p className="text-xs text-muted-foreground">Kharche is mahine category wise</p>
-      </div>
-
-      <Suspense fallback={<div className="h-[200px] w-full bg-muted/20 animate-pulse rounded-full" />}>
-        {isLoading ? (
-          <div className="h-[200px] w-full bg-muted/20 animate-pulse rounded-full" />
-        ) : (
-          <ExpenseChartContent data={data} />
-        )}
-      </Suspense>
-    </div>
+          {/* Right Custom Legend List */}
+          <div className="flex-1 w-full space-y-2 max-h-[176px] overflow-y-auto pr-1">
+            {categories.map((c) => (
+              <div
+                key={c.categoryId}
+                className="flex items-center justify-between text-xs p-1.5 rounded-lg border border-border/20 bg-muted/10 hover:bg-muted/30 transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: c.color || '#64748b' }}
+                  />
+                  <span className="text-base leading-none">{c.icon || '💸'}</span>
+                  <span className="font-bold text-foreground truncate max-w-[80px] sm:max-w-[100px]">
+                    {c.categoryName}
+                  </span>
+                </div>
+                <div className="text-right space-y-0.5 ml-2">
+                  <p className="font-extrabold text-foreground">{formatINRCompact(c.amount)}</p>
+                  <p className="text-[10px] text-muted-foreground font-semibold">
+                    {c.percentage.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

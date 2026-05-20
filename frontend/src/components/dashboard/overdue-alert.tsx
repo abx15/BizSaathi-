@@ -1,57 +1,62 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, X, BellRing, Loader2 } from 'lucide-react';
-import { formatINR } from '@/lib/format';
-import { post } from '@/lib/api/client';
+import { AlertTriangle, Send, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { formatINR } from '@/lib/format';
+import { sendBulkReminders } from '@/lib/api/invoices';
 
 interface OverdueAlertProps {
   overdueCount: number;
   overdueAmount: number;
 }
 
-export default function OverdueAlert({ overdueCount, overdueAmount }: OverdueAlertProps) {
+export function OverdueAlert({ overdueCount, overdueAmount }: OverdueAlertProps) {
   const [visible, setVisible] = useState(false);
   const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    // Check if user dismissed it in this browser session
-    const isDismissed = sessionStorage.getItem('overdue_alert_dismissed');
-    if (!isDismissed && overdueCount > 0) {
-      setVisible(true);
+    // Check if dismissed in this session
+    const isDismissed = sessionStorage.getItem('overdue-alert-dismissed');
+    if (overdueCount > 0 && !isDismissed) {
+      // Delay presentation slightly for visual interest
+      const t = setTimeout(() => setVisible(true), 800);
+      return () => clearTimeout(t);
     }
   }, [overdueCount]);
 
   const handleDismiss = () => {
-    sessionStorage.setItem('overdue_alert_dismissed', 'true');
+    sessionStorage.setItem('overdue-alert-dismissed', 'true');
     setVisible(false);
   };
 
   const handleSendReminders = async () => {
     setSending(true);
     try {
-      // API call to bulk send WhatsApp reminders via Kong Gateway
-      await post('/whatsapp/send/bulk-reminders');
-      toast.success('Reminders Bheje Gaye! 🚀', {
-        description: `${overdueCount} customers ko pending dues ke WhatsApp alerts bhej diye hain.`,
-        icon: '💬',
-      });
-      // Auto-dismiss after sending reminders to keep UI clean
-      handleDismiss();
+      // Call POST to bulk reminders
+      const response = await sendBulkReminders({ daysOverdue: 1 });
+      
+      if (response.success) {
+        toast.success('Reminders Bheja Gaya!', {
+          description: `${overdueCount} customers ko invoice link ke sath automated WhatsApp reminders bhej diye gaye hain.`,
+          icon: '📱',
+        });
+        handleDismiss(); // Hide once successfully triggered
+      } else {
+        throw new Error('API failed');
+      }
     } catch (err: any) {
-      // Graceful fallback for demo or error states
-      console.warn('Reminder fail or mock fallback:', err);
-      toast.success('Reminders Sent! (Sandbox Mode)', {
-        description: 'Customers ko bulk reminders initiate kar diye gaye hain.',
-        icon: '✅',
+      toast.error('Reminders bhejne mein truti hui', {
+        description: err.message || 'Server se sahi pratikriya nahi mili.',
       });
-      handleDismiss();
     } finally {
       setSending(false);
     }
   };
+
+  if (overdueCount === 0) return null;
 
   return (
     <AnimatePresence>
@@ -60,53 +65,52 @@ export default function OverdueAlert({ overdueCount, overdueAmount }: OverdueAle
           initial={{ opacity: 0, height: 0, y: -20 }}
           animate={{ opacity: 1, height: 'auto', y: 0 }}
           exit={{ opacity: 0, height: 0, y: -20 }}
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
-          className="overflow-hidden w-full max-w-7xl mx-auto"
+          transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+          className="w-full overflow-hidden"
         >
-          <div className="bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/30 dark:border-rose-500/20 text-rose-700 dark:text-rose-400 rounded-2xl p-4 md:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm relative overflow-hidden mb-2 mt-1">
-            {/* Background warning ambient glow */}
-            <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 blur-xl pointer-events-none rounded-full" />
-
-            <div className="flex items-center gap-3.5 flex-1 pr-8">
-              <div className="p-2 bg-rose-500/15 text-rose-500 dark:text-rose-400 rounded-xl flex-shrink-0 animate-pulse">
-                <AlertCircle className="h-5 w-5" />
+          <div className="w-full bg-rose-500/10 border border-rose-500/30 text-rose-200 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_4px_20px_rgba(239,68,68,0.1)] relative">
+            <div className="flex items-start space-x-3">
+              <div className="p-2 rounded-lg bg-rose-500/20 text-rose-500 border border-rose-500/30 flex items-center justify-center flex-shrink-0 animate-pulse mt-0.5 sm:mt-0">
+                <AlertTriangle className="h-5 w-5" />
               </div>
-              <div className="space-y-0.5">
-                <h4 className="font-bold text-sm tracking-wide uppercase text-rose-800 dark:text-rose-300">
-                  Overdue Payments Alert
+              <div className="space-y-1">
+                <h4 className="text-sm font-extrabold text-rose-400 uppercase tracking-wider">
+                  Bhugtan Overdue Chetavani!
                 </h4>
-                <p className="text-sm font-medium leading-relaxed">
-                  Aapke <span className="font-extrabold">{overdueCount} invoices</span> overdue hain! Kul{' '}
-                  <span className="font-extrabold">{formatINR(overdueAmount)}</span> payment pending hai.
+                <p className="text-xs text-rose-200 font-medium">
+                  Aapke <span className="font-extrabold text-rose-400">{overdueCount} invoices</span> overdue ho chuke hain. Total <span className="font-extrabold text-rose-400">{formatINR(overdueAmount)}</span> pending hai.
                 </p>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-rose-500/10 pt-3 md:pt-0">
-              <button
-                disabled={sending}
+            <div className="flex items-center space-x-2 self-end sm:self-auto">
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={handleSendReminders}
-                className="flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold bg-rose-500 hover:bg-rose-600 text-white rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed group w-full md:w-auto"
+                disabled={sending}
+                className="h-9 px-4 text-xs font-bold uppercase tracking-wider bg-rose-600 hover:bg-rose-500 text-white rounded-lg shadow border border-rose-500/40"
               >
                 {sending ? (
                   <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Reminders Bhej Rahe Hain...
+                    <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                    Bhej Rahe Hain...
                   </>
                 ) : (
                   <>
-                    <BellRing className="h-3.5 w-3.5 group-hover:animate-swing" /> Reminders Bhejo (WhatsApp)
+                    <Send className="h-3.5 w-3.5 mr-2" />
+                    Reminders Bhejo
                   </>
                 )}
-              </button>
-
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleDismiss}
-                className="absolute top-3.5 right-3.5 p-1.5 hover:bg-rose-500/15 rounded-lg text-rose-500/70 hover:text-rose-500 transition-colors cursor-pointer"
-                title="Hatao"
+                className="h-9 w-9 rounded-lg hover:bg-rose-500/20 text-rose-400 hover:text-rose-300"
               >
-                <X className="h-4.5 w-4.5" />
-              </button>
+                <X className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </motion.div>

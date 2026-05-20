@@ -1,160 +1,194 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { motion, useAnimation } from 'framer-motion';
+import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { formatINR } from '@/lib/format';
 import { useCountUp } from '@/hooks/use-count-up';
-import { Skeleton } from './dashboard-skeleton';
 
 interface StatCardProps {
-  icon: ReactNode;
-  iconBg: string;
+  icon: React.ReactNode;
+  iconBg: string; // tailwind bg color class, e.g., 'bg-emerald-500/10 text-emerald-500'
   label: string;
-  rawValue: number;
-  valueFormatter: (val: number) => string;
+  numericValue: number;
+  isCurrency?: boolean;
   subtext: string;
   trend?: {
     value: number;
     direction: 'up' | 'down' | 'same';
   };
-  sparkline?: number[];
+  sparkline?: number[]; // 7 daily points, e.g., [10, 15, 8, 12, 22, 18, 25]
+  progress?: {
+    value: number;
+    max: number;
+  };
   isLoading?: boolean;
-  highlightTrigger?: any; // websocket triggers brief highlight
+  highlightTrigger?: any; // any value that changes to trigger a highlight animation
 }
 
-export default function StatCard({
+export function StatCard({
   icon,
   iconBg,
   label,
-  rawValue,
-  valueFormatter,
+  numericValue,
+  isCurrency = false,
   subtext,
   trend,
   sparkline,
-  isLoading,
+  progress,
+  isLoading = false,
   highlightTrigger,
 }: StatCardProps) {
-  const animatedValue = useCountUp(rawValue, 1000, !isLoading);
-  const [pulse, setPulse] = useState<'green' | 'red' | null>(null);
+  const animatedValue = useCountUp(numericValue, 1200);
+  const controls = useAnimation();
+  const [prevTrigger, setPrevTrigger] = useState(highlightTrigger);
 
-  // Briefly highlight green/red on WebSocket update
+  // Parse display format
+  const displayValue = isCurrency
+    ? formatINR(animatedValue)
+    : animatedValue.toLocaleString('en-IN');
+
+  // Trigger web socket flash animation on change
   useEffect(() => {
-    if (highlightTrigger) {
-      const type = highlightTrigger.type === 'expense.created' ? 'red' : 'green';
-      setPulse(type);
-      const t = setTimeout(() => setPulse(null), 1000);
-      return () => clearTimeout(t);
+    if (highlightTrigger !== undefined && highlightTrigger !== prevTrigger) {
+      setPrevTrigger(highlightTrigger);
+      
+      const flashColor = trend?.direction === 'down' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.4)';
+      
+      controls.start({
+        boxShadow: `0 0 20px ${flashColor}`,
+        borderColor: trend?.direction === 'down' ? '#ef4444' : '#22c55e',
+        scale: [1, 1.03, 1],
+        transition: { duration: 0.6, ease: 'easeInOut' },
+      });
     }
-  }, [highlightTrigger]);
+  }, [highlightTrigger, prevTrigger, controls, trend?.direction]);
 
   if (isLoading) {
     return (
-      <div className="border border-muted/50 rounded-2xl p-5 space-y-4 bg-card flex flex-col justify-between h-full min-h-[140px]">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-7 w-24" />
-          </div>
-          <Skeleton className="h-10 w-10 rounded-xl" />
+      <div className="p-5 bg-card border rounded-xl space-y-3 animate-pulse">
+        <div className="flex justify-between items-center">
+          <div className="h-4 w-28 bg-muted rounded" />
+          <div className="h-9 w-9 rounded-lg bg-muted" />
         </div>
-        <div className="space-y-2">
-          <Skeleton className="h-3 w-40" />
-        </div>
+        <div className="h-8 w-24 bg-muted rounded" />
+        <div className="h-4 w-40 bg-muted rounded" />
       </div>
     );
   }
 
-  // Sparkline path generation (fits 100x30 box)
-  const generateSparklinePath = (data: number[]) => {
-    if (!data || data.length < 2) return '';
-    const min = Math.min(...data);
-    const max = Math.max(...data);
-    const range = max - min === 0 ? 1 : max - min;
-    const width = 100;
-    const height = 28;
+  // Calculate simple SVG sparkline path
+  let sparklinePath = '';
+  if (sparkline && sparkline.length > 1) {
+    const width = 80;
+    const height = 24;
     const padding = 2;
-
-    const points = data.map((val, idx) => {
-      const x = (idx / (data.length - 1)) * width;
-      // Invert Y because SVG 0 is top
-      const y = height - ((val - min) / range) * (height - padding * 2) - padding;
-      return `${x},${y}`;
-    });
-
-    return `M ${points.join(' L ')}`;
-  };
-
-  const hasTrend = trend && trend.direction !== 'same';
+    const min = Math.min(...sparkline);
+    const max = Math.max(...sparkline);
+    const range = max - min || 1;
+    
+    sparklinePath = sparkline
+      .map((val, idx) => {
+        const x = (idx / (sparkline.length - 1)) * (width - padding * 2) + padding;
+        const y = height - ((val - min) / range) * (height - padding * 2) - padding;
+        return `${idx === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+      })
+      .join(' ');
+  }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className={`border rounded-2xl p-5 bg-card flex flex-col justify-between relative overflow-hidden transition-all duration-500 h-full min-h-[140px] ${
-        pulse === 'green'
-          ? 'border-emerald-500 bg-emerald-500/5 shadow-md scale-102'
-          : pulse === 'red'
-          ? 'border-rose-500 bg-rose-500/5 shadow-md scale-102'
-          : 'border-muted/50 hover:border-muted hover:shadow-sm'
-      }`}
+      animate={controls}
+      className="p-5 bg-card border rounded-xl relative overflow-hidden transition-shadow duration-300 hover:shadow-lg flex flex-col justify-between"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+      <div className="space-y-3">
+        {/* Card Header Info */}
+        <div className="flex justify-between items-start">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             {label}
           </span>
-          <span className="text-xl md:text-2xl font-bold tracking-tight text-foreground transition-all duration-300 block">
-            {valueFormatter(animatedValue)}
-          </span>
+          <div className={`p-2.5 rounded-lg border border-border/40 ${iconBg} flex items-center justify-center`}>
+            {icon}
+          </div>
         </div>
-        <div className={`p-2.5 rounded-xl flex-shrink-0 ${iconBg}`}>
-          {icon}
+
+        {/* Card Value Display */}
+        <div className="space-y-1">
+          <h3 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+            {displayValue}
+          </h3>
+          
+          {/* Trend Tag */}
+          <div className="flex items-center space-x-2">
+            {trend && (
+              <span
+                className={`inline-flex items-center text-xs font-bold px-1.5 py-0.5 rounded ${
+                  trend.direction === 'up'
+                    ? 'text-emerald-500 bg-emerald-500/10'
+                    : trend.direction === 'down'
+                    ? 'text-rose-500 bg-rose-500/10'
+                    : 'text-slate-500 bg-slate-500/10'
+                }`}
+              >
+                {trend.direction === 'up' ? (
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                ) : trend.direction === 'down' ? (
+                  <TrendingDown className="h-3 w-3 mr-1" />
+                ) : (
+                  <Minus className="h-3 w-3 mr-1" />
+                )}
+                {trend.direction !== 'same' ? `${trend.value}%` : 'Samaan'}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground font-medium">
+              {subtext}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 mt-4 pt-2 border-t border-muted-foreground/5 w-full">
-        <div className="flex flex-col gap-0.5 max-w-[60%]">
-          {hasTrend && (
-            <span
-              className={`flex items-center gap-0.5 text-xs font-bold ${
-                trend.direction === 'up'
-                  ? 'text-emerald-500'
-                  : 'text-rose-500'
-              }`}
-            >
-              {trend.direction === 'up' ? (
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              ) : (
-                <ArrowDownRight className="h-3.5 w-3.5" />
-              )}
-              {trend.value}%
+      {/* Conditional Mini Progress Bar or Sparkline Footer */}
+      <div className="mt-4 pt-3 border-t border-muted/50">
+        {progress ? (
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
+              <span>Paid: {progress.value}</span>
+              <span>Total: {progress.max}</span>
+            </div>
+            <div className="h-1.5 w-full bg-secondary/50 rounded-full overflow-hidden">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${(progress.value / (progress.max || 1)) * 100}%` }}
+                transition={{ duration: 1, ease: 'easeOut' }}
+                className="h-full bg-indigo-500 rounded-full"
+              />
+            </div>
+          </div>
+        ) : sparkline && sparkline.length > 1 ? (
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">
+              7-Day Trend
             </span>
-          )}
-          <span className="text-[11px] text-muted-foreground leading-tight line-clamp-1">
-            {subtext}
-          </span>
-        </div>
-
-        {/* Tiny Sparkline Chart */}
-        {sparkline && sparkline.length >= 2 && (
-          <div className="w-[80px] h-[30px] flex-shrink-0 self-end opacity-80 hover:opacity-100 transition-opacity">
-            <svg viewBox="0 0 100 30" className="w-full h-full overflow-visible">
-              <path
-                d={generateSparklinePath(sparkline)}
+            <svg className="w-20 h-6 overflow-visible" viewBox="0 0 80 24">
+              <motion.path
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 1.2, ease: 'easeInOut' }}
+                d={sparklinePath}
                 fill="none"
-                stroke={
-                  !trend || trend.direction === 'up'
-                    ? '#10b981' // emerald-500
-                    : trend.direction === 'down'
-                    ? '#ef4444' // rose-500
-                    : '#64748b' // slate-500
-                }
+                stroke={trend?.direction === 'down' ? '#ef4444' : '#22c55e'}
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
             </svg>
+          </div>
+        ) : (
+          <div className="h-6 flex items-center">
+            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-ping mr-2" />
+            <span className="text-[10px] font-bold tracking-wide uppercase text-muted-foreground">
+              Aankde Surakshit Hain
+            </span>
           </div>
         )}
       </div>

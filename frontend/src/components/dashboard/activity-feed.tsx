@@ -1,174 +1,165 @@
-"use client";
+'use client';
 
-import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Bell,
-  Trash2,
-  CheckCheck,
-  FilePlus,
-  CheckCircle,
-  TrendingUp,
-  AlertCircle,
-  Activity,
-} from "lucide-react";
-import { useWsStore, WsEvent } from "@/store/ws.store";
-import { timeAgo } from "@/lib/format";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Bot, Radio, Clock, MessageSquare, Award } from 'lucide-react';
+import { useWsStore } from '@/store/ws.store';
+import { timeAgo } from '@/lib/format';
 
 export function ActivityFeed() {
-  const { events, connected, clearEvents, markAllAsRead } = useWsStore();
+  const events = useWsStore((state) => state.events);
+  const connected = useWsStore((state) => state.connected);
 
-  // Pick suitable color-coded icons per WS event type
-  const getEventStyle = (type: string) => {
-    const defaultStyle = {
-      icon: <Bell className="h-4 w-4 text-primary" />,
-      bg: "bg-primary/10 border-primary/20",
+  // Take the last 10 events (FIFO - since state adds new ones at the beginning of the array, the first 10 items are the latest!)
+  const latestEvents = events.slice(0, 10);
+
+  // Helper to resolve emoji and text theme based on WS event types
+  const getEventMeta = (type: string) => {
+    const config: Record<string, { emoji: string; color: string; border: string }> = {
+      'invoice.paid': {
+        emoji: '💰',
+        color: 'bg-emerald-500/10 text-emerald-400',
+        border: 'border-emerald-500/20',
+      },
+      'invoice.created': {
+        emoji: '📄',
+        color: 'bg-blue-500/10 text-blue-400',
+        border: 'border-blue-500/20',
+      },
+      'invoice.overdue': {
+        emoji: '⚠️',
+        color: 'bg-rose-500/10 text-rose-400',
+        border: 'border-rose-500/20',
+      },
+      'lead.won': {
+        emoji: '🎉',
+        color: 'bg-purple-500/10 text-purple-400',
+        border: 'border-purple-500/20',
+      },
+      'lead.created': {
+        emoji: '💼',
+        color: 'bg-amber-500/10 text-amber-400',
+        border: 'border-amber-500/20',
+      },
+      'expense.created': {
+        emoji: '💸',
+        color: 'bg-rose-500/10 text-rose-400',
+        border: 'border-rose-500/20',
+      },
     };
 
-    const map: Record<string, typeof defaultStyle> = {
-      "invoice.created": {
-        icon: <FilePlus className="h-4 w-4 text-blue-500" />,
-        bg: "bg-blue-500/10 border-blue-500/20",
-      },
-      "invoice.paid": {
-        icon: <CheckCircle className="h-4 w-4 text-emerald-500" />,
-        bg: "bg-emerald-500/10 border-emerald-500/20",
-      },
-      "payment.received": {
-        icon: <TrendingUp className="h-4 w-4 text-emerald-500" />,
-        bg: "bg-emerald-500/10 border-emerald-500/20",
-      },
-      "invoice.overdue": {
-        icon: <AlertCircle className="h-4 w-4 text-rose-500" />,
-        bg: "bg-rose-500/10 border-rose-500/20",
-      },
-    };
-
-    // Normalize keys
-    const match = Object.keys(map).find((key) => type.toLowerCase().includes(key));
-    return match ? map[match] : defaultStyle;
+    return (
+      config[type] || {
+        emoji: '🔔',
+        color: 'bg-indigo-500/10 text-indigo-400',
+        border: 'border-indigo-500/20',
+      }
+    );
   };
 
-  // Limit display to last 8 events for visual aesthetics and performance
-  const visibleEvents = events.slice(0, 8);
-
   return (
-    <Card className="border border-border/40 bg-card/60 backdrop-blur-md shadow-lg transition-all duration-300 hover:shadow-xl relative overflow-hidden h-full flex flex-col justify-between">
-      <div className="absolute inset-0 bg-gradient-to-tr from-emerald-500/5 via-transparent to-transparent opacity-10 pointer-events-none" />
+    <div className="bg-card border rounded-xl overflow-hidden hover:shadow-md transition-shadow h-full flex flex-col justify-between">
       <div>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <CardTitle className="text-xl font-bold tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
-                Live Activity
-              </CardTitle>
-              {/* Pulsing Green Live Connection Dot */}
-              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-background/50 border border-border/40 select-none">
-                <span className={`relative flex h-2 w-2`}>
-                  {connected && (
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  )}
-                  <span
-                    className={`relative inline-flex rounded-full h-2 w-2 ${
-                      connected ? "bg-emerald-500" : "bg-rose-500"
-                    }`}
-                  ></span>
-                </span>
-                <span className={connected ? "text-emerald-500" : "text-rose-500"}>
-                  {connected ? "Live" : "Offline"}
-                </span>
+        {/* Card Header with Pulsing connection state */}
+        <div className="p-6 pb-4 flex items-center justify-between border-b border-border/40">
+          <div>
+            <h3 className="text-base font-bold text-foreground">Live Activity</h3>
+            <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-0.5">
+              WebSocket dwara taaza ghatnayein
+            </p>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <span className="relative flex h-2 w-2">
+              {connected ? (
+                <>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </>
+              ) : (
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              )}
+            </span>
+            <span className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground flex items-center">
+              {connected ? 'Live' : 'Offline'}
+            </span>
+          </div>
+        </div>
+
+        {/* Event List */}
+        <div className="p-4 max-h-[380px] overflow-y-auto pr-1">
+          {latestEvents.length === 0 ? (
+            <div className="py-20 flex flex-col items-center justify-center text-center space-y-3">
+              <Bot className="h-10 w-10 text-muted-foreground/30 animate-bounce" />
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                  Koi Halchal Nahi Hai
+                </p>
+                <div className="flex justify-center items-center space-x-1">
+                  <span className="text-[10px] text-muted-foreground">Waiting for events</span>
+                  <span className="flex space-x-0.5">
+                    <span className="h-1 w-1 bg-muted-foreground rounded-full animate-bounce delay-100" />
+                    <span className="h-1 w-1 bg-muted-foreground rounded-full animate-bounce delay-200" />
+                    <span className="h-1 w-1 bg-muted-foreground rounded-full animate-bounce delay-300" />
+                  </span>
+                </div>
               </div>
             </div>
-            <CardDescription className="text-muted-foreground/90 mt-0.5">
-              WebSocket events aur notifications ki live feeds
-            </CardDescription>
-          </div>
-          {events.length > 0 && (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={markAllAsRead}
-                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                title="Mark all read"
-              >
-                <CheckCheck className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={clearEvents}
-                className="h-8 w-8 text-muted-foreground hover:text-rose-500"
-                title="Clear feed"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent className="pb-4">
-          {visibleEvents.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Activity className={`h-12 w-12 text-muted-foreground/30 stroke-[1.5] ${connected ? "animate-pulse" : ""}`} />
-              <h3 className="mt-4 text-sm font-semibold text-foreground">Koyi events nahi hain</h3>
-              <p className="mt-1 text-xs text-muted-foreground max-w-xs">
-                {connected
-                  ? "Bilkul shaant! Naye updates aate hi yahan live flash honge."
-                  : "WebSocket server se connect kijiye live activity dekhne ke liye."}
-              </p>
-            </div>
           ) : (
-            <div className="relative pl-3 border-l border-border/30 space-y-4">
+            <div className="space-y-3 relative">
+              {/* Timeline Connector Line */}
+              <div className="absolute left-6 top-2 bottom-2 w-0.5 bg-border/40" />
+
               <AnimatePresence initial={false}>
-                {visibleEvents.map((evt) => {
-                  const style = getEventStyle(evt.type);
+                {latestEvents.map((evt) => {
+                  const meta = getEventMeta(evt.type);
                   return (
                     <motion.div
                       key={evt.id}
-                      initial={{ opacity: 0, y: -15, scale: 0.95 }}
+                      initial={{ opacity: 0, y: -15, scale: 0.98 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-                      transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                      className={`relative flex gap-3 items-start group rounded-lg p-2 hover:bg-foreground/[0.015] border border-transparent hover:border-border/20 transition-all ${
-                        !evt.read ? "bg-primary/[0.01] font-medium" : ""
-                      }`}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ type: 'spring', stiffness: 120, damping: 14 }}
+                      className="flex items-start space-x-3 relative z-10 p-1.5 rounded-lg border border-transparent hover:border-border/30 hover:bg-muted/5 transition-all"
                     >
-                      {/* Timeline dot connector */}
-                      <span className="absolute -left-[17px] top-4.5 flex h-2 w-2 rounded-full border border-background bg-border/80 group-hover:bg-primary transition-colors" />
-
+                      {/* Event Symbol Circle */}
                       <div
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border shadow-sm ${style.bg}`}
+                        className={`h-9 w-9 rounded-xl flex items-center justify-center border text-base shadow-inner flex-shrink-0 ${meta.color} ${meta.border}`}
                       >
-                        {style.icon}
+                        {meta.emoji}
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-bold text-foreground text-xs truncate">
-                            {evt.title || "Notification"}
-                          </h4>
-                          <span className="text-[9px] font-medium text-muted-foreground whitespace-nowrap">
-                            {timeAgo(evt.timestamp)}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed mt-0.5 break-words">
+                      {/* Event Message Info */}
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <p className="text-xs font-bold text-foreground leading-normal tracking-wide">
                           {evt.message}
                         </p>
+                        <div className="flex items-center space-x-2 text-[10px] text-muted-foreground font-semibold">
+                          <Clock className="h-3 w-3" />
+                          <span>{timeAgo(evt.timestamp)}</span>
+                          {evt.title && (
+                            <>
+                              <span>·</span>
+                              <span className="text-indigo-400 capitalize">{evt.title}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-
-                      {!evt.read && (
-                        <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0 animate-pulse" />
-                      )}
                     </motion.div>
                   );
                 })}
               </AnimatePresence>
             </div>
           )}
-        </CardContent>
+        </div>
       </div>
-    </Card>
+
+      {/* Footer Branding */}
+      <div className="p-3 bg-muted/10 border-t border-border/40 text-center">
+        <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60 flex items-center justify-center">
+          <Radio className="h-3 w-3 mr-1 animate-pulse" /> BizSaathi Webhook Streaming Enabled
+        </span>
+      </div>
+    </div>
   );
 }

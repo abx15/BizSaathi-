@@ -1,67 +1,63 @@
 'use client';
 
-function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return (
-    <div
-      className={`animate-pulse rounded-md bg-muted/60 dark:bg-muted/30 ${className}`}
-      {...props}
-    />
-  );
-}
+import React from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default function DashboardSkeleton() {
+export function DashboardSkeleton() {
   return (
-    <div className="space-y-6 p-1 md:p-6 max-w-7xl mx-auto">
-      {/* Dynamic Greeting Loader */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-64 md:w-80" />
-          <Skeleton className="h-4 w-48 md:w-56" />
+    <div className="space-y-6 w-full animate-pulse">
+      {/* Dynamic Greeting & Subtitle Skeleton */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
+        <div>
+          <Skeleton className="h-8 w-64 rounded-lg bg-muted/60" />
+          <Skeleton className="h-4 w-48 mt-2 rounded bg-muted/60" />
         </div>
-        <Skeleton className="h-5 w-40 self-start md:self-center" />
+        <Skeleton className="h-5 w-40 rounded bg-muted/60" />
       </div>
 
       {/* AI Summary Banner Skeleton */}
-      <Skeleton className="h-28 w-full rounded-xl border border-muted" />
+      <Skeleton className="h-28 w-full rounded-xl bg-muted/60" />
 
-      {/* 4 Stat Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Overdue Alert Banner Skeleton */}
+      <Skeleton className="h-12 w-full rounded-lg bg-muted/40" />
+
+      {/* Stat Cards Grid (4 in a row on desktop, 2x2 on mobile) */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="border border-muted/50 rounded-xl p-4 md:p-6 space-y-4 bg-card">
-            <div className="flex items-center justify-between">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-10 w-10 rounded-xl" />
+          <div key={i} className="p-4 bg-card border rounded-xl space-y-3">
+            <div className="flex justify-between items-center">
+              <Skeleton className="h-4 w-24 rounded bg-muted/60" />
+              <Skeleton className="h-8 w-8 rounded-lg bg-muted/60" />
             </div>
-            <div className="space-y-2">
-              <Skeleton className="h-7 w-24 md:w-32" />
-              <Skeleton className="h-3 w-36 md:w-40" />
-            </div>
+            <Skeleton className="h-7 w-20 rounded bg-muted/60" />
+            <Skeleton className="h-4 w-32 rounded bg-muted/60" />
+            {/* Sparkline/Progress skeleton */}
+            <Skeleton className="h-2 w-full rounded bg-muted/40 mt-2" />
           </div>
         ))}
       </div>
 
-      {/* Two Charts Side by Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Revenue Chart (Bar) - 60% */}
-        <div className="lg:col-span-3 border border-muted/50 rounded-xl p-6 bg-card space-y-4">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-5 w-48" />
-            <Skeleton className="h-4 w-24" />
+      {/* Charts Section (Stacked on mobile, side-by-side on desktop 60/40) */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        {/* Revenue Grouped Bar Chart (60% width) */}
+        <div className="lg:col-span-6 p-6 bg-card border rounded-xl space-y-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-5 w-48 rounded bg-muted/60" />
+            <Skeleton className="h-4 w-28 rounded bg-muted/40" />
           </div>
-          <Skeleton className="h-72 w-full rounded-lg" />
+          <Skeleton className="h-[300px] w-full rounded bg-muted/40" />
         </div>
 
-        {/* Expenses Chart (Donut) - 40% */}
-        <div className="lg:col-span-2 border border-muted/50 rounded-xl p-6 bg-card space-y-4">
-          <Skeleton className="h-5 w-44" />
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-4">
-            <Skeleton className="h-44 w-44 rounded-full" />
-            <div className="space-y-3 w-full sm:w-auto flex-1">
+        {/* Expense Donut Chart (40% width) */}
+        <div className="lg:col-span-4 p-6 bg-card border rounded-xl space-y-4">
+          <Skeleton className="h-5 w-40 rounded bg-muted/60" />
+          <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4">
+            <Skeleton className="h-40 w-40 rounded-full bg-muted/40" />
+            <div className="space-y-2 w-full max-w-[150px]">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="flex items-center justify-between sm:justify-start gap-4">
-                  <Skeleton className="h-3 w-3 rounded-full" />
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-12 ml-auto sm:ml-0" />
+                <div key={i} className="flex items-center space-x-2">
+                  <Skeleton className="h-3 w-3 rounded-full bg-muted/60" />
+                  <Skeleton className="h-3 w-20 rounded bg-muted/60" />
                 </div>
               ))}
             </div>
@@ -71,62 +67,63 @@ export default function DashboardSkeleton() {
 
       {/* Quick Actions Row */}
       <div className="space-y-3">
-        <Skeleton className="h-5 w-32" />
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
+        <Skeleton className="h-5 w-32 rounded bg-muted/60" />
+        <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-none">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="min-w-[130px] sm:min-w-[150px] border border-muted/50 rounded-xl p-4 bg-card flex flex-col items-center justify-center space-y-3 text-center">
-              <Skeleton className="h-10 w-10 rounded-xl" />
-              <Skeleton className="h-3 w-20 sm:w-24" />
+            <div
+              key={i}
+              className="flex-shrink-0 w-36 h-28 bg-card border rounded-xl flex flex-col items-center justify-center p-4 space-y-3"
+            >
+              <Skeleton className="h-8 w-8 rounded-full bg-muted/60" />
+              <Skeleton className="h-3 w-20 rounded bg-muted/60" />
             </div>
           ))}
         </div>
       </div>
 
-      {/* Invoices, Customers, Activity Row */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Recent Invoices - 2 cols on desktop */}
-        <div className="xl:col-span-2 border border-muted/50 rounded-xl p-6 bg-card space-y-4">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-5 w-36" />
-            <Skeleton className="h-4 w-28" />
+      {/* Tables Section (Stacked on mobile and desktop) */}
+      <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+        {/* Recent Invoices Table (60% width) */}
+        <div className="lg:col-span-6 p-6 bg-card border rounded-xl space-y-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-5 w-36 rounded bg-muted/60" />
+            <Skeleton className="h-4 w-28 rounded bg-muted/40" />
           </div>
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-muted/20">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-3 w-28" />
+              <div key={i} className="flex justify-between items-center py-2 border-b last:border-0">
+                <div className="space-y-1">
+                  <Skeleton className="h-4 w-24 rounded bg-muted/60" />
+                  <Skeleton className="h-3 w-16 rounded bg-muted/40" />
                 </div>
-                <Skeleton className="h-4 w-16" />
-                <Skeleton className="h-6 w-16 rounded-full" />
-                <Skeleton className="h-8 w-12 rounded-lg" />
+                <Skeleton className="h-4 w-20 rounded bg-muted/60" />
+                <Skeleton className="h-6 w-16 rounded bg-muted/40" />
               </div>
             ))}
           </div>
         </div>
 
-        {/* Top Customers & Live Activity */}
-        <div className="space-y-6">
-          {/* Top Customers */}
-          <div className="border border-muted/50 rounded-xl p-6 bg-card space-y-4">
-            <Skeleton className="h-5 w-40" />
-            <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-5 w-5 rounded" />
-                  <Skeleton className="h-8 w-8 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                  <Skeleton className="h-4 w-16" />
+        {/* Top Customers (40% width) */}
+        <div className="lg:col-span-4 p-6 bg-card border rounded-xl space-y-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-5 w-40 rounded bg-muted/60" />
+            <Skeleton className="h-4 w-28 rounded bg-muted/40" />
+          </div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center space-x-3 py-1">
+                <Skeleton className="h-6 w-6 rounded-full bg-muted/60" />
+                <Skeleton className="h-8 w-8 rounded-full bg-muted/60" />
+                <div className="flex-1 space-y-1">
+                  <Skeleton className="h-4 w-28 rounded bg-muted/60" />
+                  <Skeleton className="h-3 w-20 rounded bg-muted/40" />
                 </div>
-              ))}
-            </div>
+                <Skeleton className="h-4 w-16 rounded bg-muted/60" />
+              </div>
+            ))}
           </div>
         </div>
       </div>
     </div>
   );
 }
-export { Skeleton };

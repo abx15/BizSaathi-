@@ -1,71 +1,87 @@
 'use client';
 
+import React from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { FilePlus, PiggyBank, UserPlus, FolderKanban, MessageSquareCode } from 'lucide-react';
-import Link from 'next/link';
+import { FilePlus, Receipt, UserPlus, Briefcase, Bot } from 'lucide-react';
 
-export default function QuickActions() {
+export function QuickActions() {
+  const router = useRouter();
+
   const actions = [
     {
-      label: 'Invoice Banao',
-      icon: <FilePlus className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />,
-      color: 'bg-emerald-500/10 hover:bg-emerald-500/15 border-emerald-500/20',
-      url: '/invoices/new',
+      title: 'Invoice Banao',
+      icon: <FilePlus className="h-6 w-6" />,
+      colorClass: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+      route: '/invoices/new',
     },
     {
-      label: 'Kharcha Add Karo',
-      icon: <PiggyBank className="h-6 w-6 text-rose-600 dark:text-rose-400" />,
-      color: 'bg-rose-500/10 hover:bg-rose-500/15 border-rose-500/20',
-      url: '/expenses/new',
+      title: 'Kharcha Add Karo',
+      icon: <Receipt className="h-6 w-6" />,
+      colorClass: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
+      route: '/expenses/new',
     },
     {
-      label: 'Staff Add Karo',
-      icon: <UserPlus className="h-6 w-6 text-blue-600 dark:text-blue-400" />,
-      color: 'bg-blue-500/10 hover:bg-blue-500/15 border-blue-500/20',
-      url: '/staff/new',
+      title: 'Staff Add Karo',
+      icon: <UserPlus className="h-6 w-6" />,
+      colorClass: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+      route: '/staff/new',
     },
     {
-      label: 'Lead Add Karo',
-      icon: <FolderKanban className="h-6 w-6 text-amber-600 dark:text-amber-400" />,
-      color: 'bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/20',
-      url: '/crm/leads/new',
+      title: 'Lead Add Karo',
+      icon: <Briefcase className="h-6 w-6" />,
+      colorClass: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
+      route: '/crm/leads/new',
     },
     {
-      label: 'AI Se Poochho',
-      icon: <MessageSquareCode className="h-6 w-6 text-purple-600 dark:text-purple-400" />,
-      color: 'bg-purple-500/10 hover:bg-purple-500/15 border-purple-500/20',
-      url: '/ai',
+      title: 'AI Se Poochho',
+      icon: <Bot className="h-6 w-6" />,
+      colorClass: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+      route: '/ai',
     },
   ];
 
+  const containerVariants = {
+    hidden: {},
+    visible: {
+      transition: {
+        staggerChildren: 0.05,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, scale: 0.95 },
+    visible: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 100 } },
+  };
+
   return (
-    <div className="space-y-3.5 w-full">
-      <h3 className="font-bold text-foreground text-base tracking-tight">Quick Actions</h3>
-      
-      {/* Horizontal grid scrollable on mobile */}
-      <div className="flex gap-4 overflow-x-auto pb-2.5 pt-0.5 scrollbar-none snap-x snap-mandatory">
+    <div className="space-y-3">
+      <h3 className="text-base font-bold text-foreground">Quick Actions</h3>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="flex gap-4 overflow-x-auto pb-3 scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent -mx-4 px-4 sm:mx-0 sm:px-0"
+      >
         {actions.map((act, index) => (
           <motion.div
             key={index}
-            whileHover={{ scale: 1.04, y: -2 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            className="snap-start flex-shrink-0 min-w-[135px] sm:min-w-[155px] flex-1"
+            variants={itemVariants}
+            whileHover={{ scale: 1.05, y: -4 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => router.push(act.route)}
+            className="flex-shrink-0 w-36 h-28 bg-card border rounded-xl flex flex-col items-center justify-center p-4 text-center cursor-pointer hover:shadow-md transition-shadow select-none group"
           >
-            <Link
-              href={act.url}
-              className={`flex flex-col items-center justify-center p-4 border rounded-2xl bg-card text-center gap-3 shadow-xs hover:shadow-sm cursor-pointer transition-all duration-300 ${act.color} h-[115px] sm:h-[125px]`}
-            >
-              <div className="p-2.5 bg-background rounded-xl shadow-xs">
-                {act.icon}
-              </div>
-              <span className="text-xs font-bold text-foreground tracking-wide leading-tight">
-                {act.label}
-              </span>
-            </Link>
+            <div className={`p-3 rounded-xl border mb-3 group-hover:scale-110 transition-transform ${act.colorClass}`}>
+              {act.icon}
+            </div>
+            <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
+              {act.title}
+            </span>
           </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
