@@ -9,11 +9,40 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import * as Sentry from '@sentry/node';
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  tracesSampleRate: 0.1,
+  beforeSend(event) {
+    if (event.request && event.request.data) {
+      try {
+        const body = typeof event.request.data === 'string' ? JSON.parse(event.request.data) : event.request.data;
+        const sensitiveKeys = ['otp', 'password', 'phone', 'phoneNumber', 'bankAccount', 'accountNumber', 'routingNumber', 'cvv', 'cardNumber'];
+        const scrub = (obj: any) => {
+          if (!obj || typeof obj !== 'object') return;
+          for (const key in obj) {
+            if (sensitiveKeys.some(k => key.toLowerCase().includes(k.toLowerCase()))) {
+              obj[key] = '[SCRUBBED]';
+            } else if (typeof obj[key] === 'object') {
+              scrub(obj[key]);
+            }
+          }
+        };
+        scrub(body);
+        event.request.data = typeof event.request.data === 'string' ? JSON.stringify(body) : body;
+      } catch {
+        // Leave request data unchanged if JSON parsing fails
+      }
+    }
+    return event;
+  },
+});
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  const logger = app.get(LoggerService);
+  const logger = await app.resolve(LoggerService);
   app.useLogger(logger);
 
   const configService = app.get(ConfigService);
@@ -22,7 +51,21 @@ async function bootstrap() {
   const corsOrigins = configService.get<string[]>('cors.origins') || [];
 
   // Security & CORS
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+        connectSrc: ["'self'", 'https:', 'wss:'],
+        objectSrc: ["'none'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  }));
   app.enableCors({
     origin: corsOrigins,
     credentials: true,

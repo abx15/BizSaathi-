@@ -1,0 +1,83 @@
+name: AI Service CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/ai-service/**']
+  pull_request:
+    branches: [main]
+    paths: ['backend/ai-service/**']
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/ai-service
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/ai-service/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          cd backend/ai-service
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx ruff mypy
+
+      - name: Run linter
+        run: cd backend/ai-service && ruff check .
+
+      - name: Type check
+        run: cd backend/ai-service && mypy app/ --ignore-missing-imports
+
+      - name: Run tests
+        run: cd backend/ai-service && pytest --cov=app --cov-report=xml
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend/ai-service
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-railway:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Railway
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: ai-service

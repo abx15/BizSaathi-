@@ -18,5 +18,5 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true
   },
-  "exclude": ["node_modules", "dist", "whatsapp-bot-service", "crm-service", "ai-service"]
+  "exclude": ["node_modules", "dist", "whatsapp-bot-service", "crm-service", "ai-service", "worker-service"]
 }

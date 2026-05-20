@@ -9,6 +9,9 @@ import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { AddPaymentDto } from './dto/add-payment.dto';
 import { InvoiceFilterDto } from './dto/invoice-filter.dto';
 import { InvoiceStatus, PaymentMethod } from '@prisma/client';
+import { EventPublisherService } from '../events/event-publisher.service';
+import { EventType } from '../events/event-types';
+import { QueueService } from '../queue/queue.service';
 
 @Injectable()
 export class InvoiceService {
@@ -20,6 +23,8 @@ export class InvoiceService {
     private readonly gstService: GstService,
     private readonly invoiceNumberService: InvoiceNumberService,
     private readonly pdfService: PdfService,
+    private readonly eventPublisher: EventPublisherService,
+    private readonly queue: QueueService,
   ) {}
 
   async create(tenantId: string, dto: CreateInvoiceDto) {
@@ -96,6 +101,16 @@ export class InvoiceService {
     });
 
     await this.redis.del(`dashboard:${tenantId}`);
+    
+    // Queue background jobs for PDF generation, AI indexing, and realtime event
+    await this.queue.generateInvoicePdf({ invoiceId: invoice.id, tenantId });
+    await this.queue.indexEntity({ tenantId, entityType: 'invoice', entityId: invoice.id, operation: 'upsert' });
+    await this.queue.pushRealtimeEvent({
+      tenantId,
+      eventType: 'invoice.created',
+      eventPayload: { invoiceId: invoice.id },
+    });
+
     return invoice;
   }
 
@@ -238,17 +253,42 @@ export class InvoiceService {
   }
 
   async send(tenantId: string, id: string) {
-    const invoice = await this.prisma.invoice.findFirst({ where: { id, tenantId } });
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, tenantId },
+      include: { customer: true },
+    });
     if (!invoice) throw new NotFoundException('Invoice not found');
     if (invoice.status !== InvoiceStatus.DRAFT) throw new ForbiddenException('Only DRAFT invoices can be sent');
 
     const updated = await this.prisma.invoice.update({
       where: { id },
       data: { status: InvoiceStatus.SENT },
+      include: { customer: true },
     });
 
-    this.logger.log(`[BullMQ Simulation] Queued WhatsApp message for invoice ${invoice.invoiceNumber}`);
-    await this.redis.del(`dashboard:${tenantId}`);
+    // Dispatch background jobs for WhatsApp and Email sending
+    if (updated.customer?.phone) {
+      await this.queue.sendInvoiceWhatsApp({
+        invoiceId: updated.id,
+        tenantId,
+        phone: updated.customer.phone,
+      });
+    }
+    if (updated.customer?.email) {
+      await this.queue.sendInvoiceEmail({
+        invoiceId: updated.id,
+        tenantId,
+        recipientEmail: updated.customer.email,
+      });
+    }
+
+    // Publish invoice.sent realtime event
+    await this.queue.pushRealtimeEvent({
+      tenantId,
+      eventType: 'invoice.sent',
+      eventPayload: { invoiceId: updated.id },
+    });
+
     return updated;
   }
 
@@ -299,6 +339,39 @@ export class InvoiceService {
     ]);
 
     await this.redis.del(`dashboard:${tenantId}`);
+
+    // Load customer name to populate payload
+    const customer = await this.prisma.customer.findUnique({
+      where: { id: updatedInvoice.customerId },
+    });
+    const customerName = customer?.name || 'Customer';
+
+    // Dispatch background jobs for payment received notification and AI vector re-indexing
+    await this.queue.pushRealtimeEvent({
+      tenantId,
+      eventType: 'payment.received',
+      eventPayload: { invoiceId: updatedInvoice.id, amount: amountNum },
+    });
+
+    await this.queue.indexEntity({
+      tenantId,
+      entityType: 'invoice',
+      entityId: updatedInvoice.id,
+      operation: 'upsert',
+    });
+
+    // If invoice is fully paid, dispatch invoice.paid realtime event job
+    if (updatedInvoice.status === InvoiceStatus.PAID) {
+      await this.queue.pushRealtimeEvent({
+        tenantId,
+        eventType: 'invoice.paid',
+        eventPayload: {
+          invoiceId: updatedInvoice.id,
+          amount: Number(updatedInvoice.totalAmount),
+        },
+      });
+    }
+
     return { payment, invoice: updatedInvoice };
   }
 

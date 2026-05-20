@@ -80,4 +80,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async expire(key: string, seconds: number): Promise<void> {
     await this.client.expire(key, seconds);
   }
+
+  /**
+   * Publish a message to a Redis Pub/Sub channel.
+   * @param channel The channel name.
+   * @param message The message string (JSON).
+   */
+  async publish(channel: string, message: string): Promise<number> {
+    return this.client.publish(channel, message);
+  }
 }

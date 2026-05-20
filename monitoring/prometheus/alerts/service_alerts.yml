@@ -1,0 +1,60 @@
+groups:
+  - name: service_alerts
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is DOWN"
+          description: "Service has been down for more than 1 minute"
+
+      - alert: HighErrorRate
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m]) /
+          rate(http_requests_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate > 5% for 2 minutes"
+
+      - alert: SlowAPIResponse
+        expr: |
+          histogram_quantile(0.95,
+            rate(http_request_duration_ms_bucket[5m])) > 2000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow API responses on {{ $labels.job }}"
+          description: "P95 latency > 2s"
+
+      - alert: HighMemoryUsage
+        expr: |
+          process_resident_memory_bytes / 1024 / 1024 > 512
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory on {{ $labels.job }}: {{ $value }}MB"
+
+      - alert: WebSocketConnectionsDrop
+        expr: realtime_connections_total < 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WebSocket connections drop"
+          description: "Active connections dropped below 10 for 5 minutes"
+
+      - alert: QueueJobsFailing
+        expr: increase(queue_jobs_failed[10m]) > 10
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Queue {{ $labels.queue }} has {{ $value }} failed jobs"
+          description: "Failed jobs in queue {{ $labels.queue }} exceeded 10 in the last 10 minutes"

@@ -19,6 +19,10 @@ import { AttendanceModule } from './attendance/attendance.module';
 import { LeaveModule } from './leave/leave.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
+import { EventsModule } from './events/events.module';
+import { QueueModule } from './queue/queue.module';
+import { HealthModule } from './health/health.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { TenantMiddleware } from './common/middleware/tenant.middleware';
@@ -54,6 +58,10 @@ import { TenantMiddleware } from './common/middleware/tenant.middleware';
     LeaveModule,
     PayrollModule,
     WhatsAppModule,
+    EventsModule,
+    QueueModule,
+    HealthModule,
+    MetricsModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',

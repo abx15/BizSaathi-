@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service';
 import { RedisService } from '../redis/redis.service';
+import { QueueService } from '../queue/queue.service';
 import { PayrollCalculatorService } from './payroll-calculator.service';
 import { SalarySlipService } from './salary-slip.service';
 import { ProcessPayrollDto } from './dto/process-payroll.dto';
@@ -24,6 +25,7 @@ export class PayrollService {
     private readonly redis: RedisService,
     private readonly calculator: PayrollCalculatorService,
     private readonly salarySlip: SalarySlipService,
+    private readonly queue: QueueService,
   ) {}
 
   async process(tenantId: string, dto: ProcessPayrollDto) {
@@ -117,7 +119,7 @@ export class PayrollService {
         otherDeductions,
       });
 
-      await this.prisma.payroll.create({
+      const createdPayroll = await this.prisma.payroll.create({
         data: {
           tenantId,
           staffId: staff.id,
@@ -145,12 +147,38 @@ export class PayrollService {
         },
       });
 
+      // After payroll processed, queue slips generation and email delivery
+      await this.queue.generateSalarySlip({
+        payrollId: createdPayroll.id,
+        tenantId,
+        staffId: staff.id,
+        month,
+      });
+
+      if (staff.email) {
+        await this.queue.sendPayslipEmail({
+          invoiceId: createdPayroll.id, // Using payroll ID here as the identifier
+          tenantId,
+          recipientEmail: staff.email,
+        });
+      }
+
       results.push({
         staffId: staff.id,
         name: staff.name,
         netSalary: calcResult.netSalary,
       });
     }
+
+    // Push realtime event
+    await this.queue.pushRealtimeEvent({
+      tenantId,
+      eventType: 'payroll.processed',
+      eventPayload: {
+        month,
+        count: results.length,
+      },
+    });
 
     const totalNet = results.reduce((s, r) => s + r.netSalary, 0);
     return {
@@ -283,6 +311,26 @@ export class PayrollService {
       `[PAYROLL_PAID] ${draftPayrolls.length} payrolls marked PAID for ${dto.month}`,
     );
 
+    // Queue background jobs for salary slip generation
+    for (const payroll of draftPayrolls) {
+      await this.queue.generateSalarySlip({
+        payrollId: payroll.id,
+        tenantId,
+        staffId: payroll.staffId,
+        month: payroll.month,
+      });
+    }
+
+    // Push real-time event
+    await this.queue.pushRealtimeEvent({
+      tenantId,
+      eventType: 'payroll:paid',
+      eventPayload: {
+        month: dto.month,
+        count: draftPayrolls.length,
+      },
+    });
+
     return {
       paid: draftPayrolls.length,
       month: dto.month,
@@ -300,13 +348,34 @@ export class PayrollService {
       throw new ForbiddenException('Payroll already paid');
     }
 
-    return this.prisma.payroll.update({
+    const updated = await this.prisma.payroll.update({
       where: { id: payrollId },
       data: {
         status: PayrollStatus.PAID,
         paidAt: new Date(),
       },
     });
+
+    // Queue salary slip generation
+    await this.queue.generateSalarySlip({
+      payrollId: updated.id,
+      tenantId,
+      staffId: updated.staffId,
+      month: updated.month,
+    });
+
+    // Push real-time event
+    await this.queue.pushRealtimeEvent({
+      tenantId,
+      eventType: 'payroll:paid:single',
+      eventPayload: {
+        payrollId: updated.id,
+        staffId: updated.staffId,
+        month: updated.month,
+      },
+    });
+
+    return updated;
   }
 
   async getSlip(tenantId: string, payrollId: string) {

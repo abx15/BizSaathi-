@@ -5,12 +5,14 @@ import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { ExpenseFilterDto } from './dto/expense-filter.dto';
 import { Decimal } from 'decimal.js';
 import { StorageService } from '../storage/storage.service';
+import { QueueService } from '../queue/queue.service';
 
 @Injectable()
 export class ExpenseService {
   constructor(
     private readonly prisma: DatabaseService,
     private readonly storageService: StorageService,
+    private readonly queue: QueueService,
   ) {}
 
   async create(tenantId: string, userId: string, dto: CreateExpenseDto) {
@@ -46,6 +48,14 @@ export class ExpenseService {
         },
       });
     }
+
+    // Queue AI background job to index the new expense
+    await this.queue.indexEntity({
+      tenantId,
+      entityType: 'expense',
+      entityId: expense.id,
+      operation: 'upsert',
+    });
 
     return expense;
   }
@@ -133,6 +143,14 @@ export class ExpenseService {
       }
     }
 
+    // Queue AI background job to re-index the updated expense
+    await this.queue.indexEntity({
+      tenantId,
+      entityType: 'expense',
+      entityId: updated.id,
+      operation: 'upsert',
+    });
+
     return updated;
   }
 
@@ -146,8 +164,18 @@ export class ExpenseService {
       } catch (e) {}
     }
 
-    return this.prisma.expense.delete({
+    const deleted = await this.prisma.expense.delete({
       where: { id },
     });
+
+    // Queue AI background job to delete the expense from the index
+    await this.queue.indexEntity({
+      tenantId,
+      entityType: 'expense',
+      entityId: id,
+      operation: 'delete',
+    });
+
+    return deleted;
   }
 }

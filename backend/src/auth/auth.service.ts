@@ -8,6 +8,7 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtPayload, JwtRefreshPayload } from './interfaces/jwt-payload.interface';
 import { HashUtil } from '../common/utils/hash.util';
 import { LoggerService } from '../logger/logger.service';
+import { QueueService } from '../queue/queue.service';
 import { UserRole } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
@@ -19,6 +20,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly logger: LoggerService,
+    private readonly queue: QueueService,
   ) {
     this.logger.setContext(AuthService.name);
   }
@@ -52,10 +54,29 @@ export class AuthService {
       },
     });
 
+    // Check if user exists to find email
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+    });
+
+    // Dispatch background OTP jobs
+    await this.queue.sendOTPWhatsApp({
+      phone,
+      otp,
+      expiryMinutes: Math.ceil(otpExpiry / 60),
+    });
+
+    if (user?.email) {
+      await this.queue.sendOTPEmail({
+        phone,
+        email: user.email,
+        otp,
+        expiryMinutes: Math.ceil(otpExpiry / 60),
+      });
+    }
+
     if (process.env.NODE_ENV === 'development') {
       this.logger.log(`Development OTP for ${phone}: ${otp}`);
-    } else {
-      // TODO: Integrate MSG91 API here using configService.get('otp.msg91ApiKey')
     }
 
     return { expiresIn: otpExpiry };

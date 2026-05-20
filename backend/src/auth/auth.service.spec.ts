@@ -5,6 +5,7 @@ import { RedisService } from '../redis/redis.service';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { LoggerService } from '../logger/logger.service';
+import { QueueService } from '../queue/queue.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -66,6 +67,11 @@ describe('AuthService', () => {
     warn: jest.fn(),
   };
 
+  const mockQueueService = {
+    sendOTPEmail: jest.fn(),
+    sendOTPWhatsApp: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -75,6 +81,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwtService },
         { provide: ConfigService, useValue: mockConfigService },
         { provide: LoggerService, useValue: mockLoggerService },
+        { provide: QueueService, useValue: mockQueueService },
       ],
     }).compile();
 

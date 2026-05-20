@@ -1,6 +1,7 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { LoggerService } from '../../logger/logger.service';
+import * as Sentry from '@sentry/node';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -35,6 +36,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     if (status === HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(`[${request.method}] ${request.url} - ${exception}`, exception instanceof Error ? exception.stack : '');
+      Sentry.captureException(exception);
     } else {
       this.logger.warn(`[${request.method}] ${request.url} - ${status} - ${JSON.stringify(message)}`);
     }

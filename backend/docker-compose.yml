@@ -44,7 +44,7 @@ services:
       KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
     ports:
       - '8000:8000'
-      - '8001:8001'
+      - '8011:8001'
     volumes:
       - ./kong.yml:/usr/local/kong/declarative/kong.yml
     depends_on:
@@ -62,7 +62,7 @@ services:
       - PORT=3001
       - API_PREFIX=v1
       # Note: using postgres and redis service names here for internal routing
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bizsaathi
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bizsaathi?sslmode=disable
       - REDIS_URL=redis://redis:6379
       - JWT_ACCESS_SECRET=change_me_access_secret_min_32_chars
       - JWT_REFRESH_SECRET=change_me_refresh_secret_min_32_chars
@@ -96,9 +96,9 @@ services:
       - "3005:3005"
     environment:
       - PORT=3005
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bizsaathi
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bizsaathi?sslmode=disable
       - REDIS_URL=redis://redis:6379
-      - JWT_ACCESS_SECRET=change_me_access_secret_min_32_chars
+      - JWT_ACCESS_SECRET=349fd7e78c263e71f264a348687a07e89aff93a8aa599b67110fc0fc62cc48dc
       - LOG_LEVEL=info
       - RATE_LIMIT_RPM=120
     depends_on:
@@ -113,12 +113,12 @@ services:
       dockerfile: Dockerfile
     container_name: bizsaathi-ai-service
     ports:
-      - "8000:8000"
+      - "8008:8000"
     environment:
       - PORT=8000
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bizsaathi
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bizsaathi?sslmode=disable
       - REDIS_URL=redis://redis:6379
-      - JWT_ACCESS_SECRET=change_me_access_secret_min_32_chars
+      - JWT_ACCESS_SECRET=349fd7e78c263e71f264a348687a07e89aff93a8aa599b67110fc0fc62cc48dc
       - GROQ_API_KEY=${GROQ_API_KEY}
       - QDRANT_URL=http://qdrant:6333
       - QDRANT_COLLECTION_BUSINESS=business_data
@@ -136,7 +136,7 @@ services:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
 
   qdrant:
     image: qdrant/qdrant:v1.10.0
@@ -145,11 +145,6 @@ services:
       - "6333:6333"
     volumes:
       - qdrant_data:/qdrant/storage
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:6333/readyz || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   whatsapp-bot-service:
     build:
@@ -160,9 +155,9 @@ services:
       - "3007:3007"
     environment:
       - PORT=3007
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bizsaathi
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/bizsaathi?sslmode=disable
       - REDIS_URL=redis://redis:6379
-      - JWT_ACCESS_SECRET=change_me_access_secret_min_32_chars
+      - JWT_ACCESS_SECRET=349fd7e78c263e71f264a348687a07e89aff93a8aa599b67110fc0fc62cc48dc
       - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
       - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
       - WHATSAPP_BUSINESS_ACCOUNT_ID=${WHATSAPP_BUSINESS_ACCOUNT_ID}
@@ -170,6 +165,57 @@ services:
       - WHATSAPP_VERIFY_TOKEN=${WHATSAPP_VERIFY_TOKEN}
       - NESTJS_INTERNAL_URL=http://backend:3001
       - AI_SERVICE_URL=http://ai-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  realtime-service:
+    build:
+      context: ./realtime-service
+      dockerfile: Dockerfile
+    container_name: bizsaathi-realtime-service
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - REDIS_URL=redis://redis:6379
+      - JWT_ACCESS_SECRET=349fd7e78c263e71f264a348687a07e89aff93a8aa599b67110fc0fc62cc48dc
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-super_secret_internal_key}
+      - CORS_ORIGINS=http://localhost:3000,https://bizsaathi.in
+      - MAX_CONNECTIONS=10000
+      - PING_INTERVAL_SECONDS=30
+      - PONG_TIMEOUT_SECONDS=10
+      - LOG_LEVEL=info
+      - GO_ENV=development
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  worker-service:
+    build:
+      context: ./worker-service
+      dockerfile: Dockerfile
+    container_name: bizsaathi-worker-service
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://neondb_owner:npg_R8AjElBf7LeT@ep-royal-grass-ap7cnn88-pooler.c-7.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+# Redis
+# REDIS_URL=redis://localhost:6379
+      - REDIS_URL=redis://localhost:6379
+      - AI_SERVICE_URL=http://ai-service:8000
+      - INTERNAL_API_KEY=${INTERNAL_API_KEY:-super_secret_internal_key}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - RESEND_FROM=${RESEND_FROM}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
     depends_on:
       postgres:
         condition: service_healthy
