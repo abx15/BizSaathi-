@@ -20,9 +20,6 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "BizSaathi — Free All-in-One Business SaaS for Indian SMBs",
   description: "Aapka Business, Hamare Haath Mein. Manage your invoicing, expenses, staff, and AI financial reports in Hinglish.",
-  icons: {
-    icon: "/logo.svg",
-  },
 };
 
 export default function RootLayout({
@@ -33,6 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
       <body
+        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} min-h-full font-sans antialiased bg-background text-foreground`}
       >
         <QueryProvider>
